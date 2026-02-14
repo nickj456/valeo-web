@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Valeo – Championship O/U 2.5</title>
+  <style>
+    :root { --bg:#0b0d12; --card:#121620; --text:#e7eaf0; --muted:#9aa3b2; --line:#242b3a; }
+    body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); }
+    .wrap { max-width: 1100px; margin: 0 auto; padding: 22px; }
+    header { display:flex; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:18px; }
+    h1 { font-size: 26px; margin:0; letter-spacing: 0.2px; }
+    .sub { margin:6px 0 0; color: var(--muted); font-size: 13px; }
+    .pill { font-size: 12px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 999px; color: var(--muted); white-space:nowrap; }
+    .grid { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:12px; margin: 14px 0 18px; }
+    .card { background: var(--card); border:1px solid var(--line); border-radius: 14px; padding: 12px; }
+    .k { color: var(--muted); font-size: 12px; }
+    .v { font-size: 18px; margin-top: 6px; }
+    .err { background:#2a1212; border:1px solid #5a1f1f; border-radius: 12px; padding: 12px; color:#ffd6d6; margin: 12px 0; display:none; }
+    table { width:100%; border-collapse: collapse; background: var(--card); border:1px solid var(--line); border-radius: 14px; overflow:hidden; }
+    thead th { text-align:left; font-size: 12px; color: var(--muted); padding: 12px; border-bottom:1px solid var(--line); background: rgba(255,255,255,0.02); }
+    tbody td { padding: 12px; border-bottom:1px solid var(--line); vertical-align: top; }
+    tbody tr:last-child td { border-bottom:none; }
+    .match { font-weight: 600; }
+    .muted { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .evpos { color:#9ff0b5; font-weight:600; }
+    .evneg { color:#ffb3b3; font-weight:600; }
+    .tag { font-size:12px; padding:4px 8px; border:1px solid var(--line); border-radius: 999px; display:inline-block; }
+    .footer { margin-top: 14px; color: var(--muted); font-size: 12px; }
+    @media (max-width: 920px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (max-width: 560px) { .grid { grid-template-columns: 1fr; } thead { display:none; } tbody td { display:block; } tbody td[data-label]:before { content: attr(data-label) " "; color: var(--muted); font-size: 12px; display:block; margin-bottom: 6px; } }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>Valeo</h1>
+        <div class="sub">Championship • Goals Over/Under 2.5 • Poisson + recency + shrink + market blend</div>
+      </div>
+      <div class="pill" id="statusPill">Loading…</div>
+    </header>
+
+    <div class="grid">
+      <div class="card">
+        <div class="k">Picks</div>
+        <div class="v" id="kPicks">—</div>
+      </div>
+      <div class="card">
+        <div class="k">Avg EV</div>
+        <div class="v" id="kAvgEv">—</div>
+      </div>
+      <div class="card">
+        <div class="k">Avg Odds</div>
+        <div class="v" id="kAvgOdds">—</div>
+      </div>
+      <div class="card">
+        <div class="k">Last updated</div>
+        <div class="v" style="font-size:14px" id="kUpdated">—</div>
+      </div>
+    </div>
+
+    <div class="err" id="errBox"></div>
+
+    <table>
+      <thead>
+  <tr>
+    <th>Kick-off</th>
+    <th>Match</th>
+    <th>Pick</th>
+    <th>Odds</th>
+
+    <th title="Model probability for the pick (your blended value after combining Poisson model and market anchor).">
+      Model
+    </th>
+
+    <th title="Market implied probability (normalised from best Over/Under 2.5 odds to remove bookmaker margin).">
+      Market
+    </th>
+
+    <th title="Expected value per £1 stake: (FinalProb × Odds) − 1. Positive means the price looks value vs your model.">
+      EV
+    </th>
+
+    <th title="Expected goals total (λ_home + λ_away) from the Poisson inputs. Useful for sanity-checking Under/Over picks.">
+      xG total
+    </th>
+
+    <th title="Bookmaker offering the best price you captured for that side of the market (Over or Under 2.5).">
+      Book
+    </th>
+  </tr>
+</thead>
+
+      <tbody id="rows"></tbody>
+    </table>
+
+    <div class="footer">
+      Personal use only for now. When you go public, we’ll add settlement, ROI, and a full audit trail.
+    </div>
+  </div>
+
+  <script>
+    const fmtPct = (x) => (Math.round(x * 1000) / 10).toFixed(1) + "%";
+    const fmtNum = (x, d=3) => (Math.round(x * Math.pow(10,d)) / Math.pow(10,d)).toFixed(d);
+    const fmtDt = (iso) => {
+      try {
+        const d = new Date(iso);
+        // UK-friendly without being locale-chaotic
+        return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
+      } catch { return iso; }
+    };
+
+    function showError(msg) {
+      const box = document.getElementById("errBox");
+      box.style.display = "block";
+      box.textContent = msg;
+      document.getElementById("statusPill").textContent = "Error loading data";
+    }
+
+    async function load() {
+      try {
+        // cache-bust so local file updates show
+        const res = await fetch("./champ_ou25_edge_report.json?ts=" + Date.now(), { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+
+        // Sort by kick-off
+        data.sort((a,b) => new Date(a.utc_date) - new Date(b.utc_date));
+
+        const picks = data.length;
+        const avgEv = picks ? data.reduce((s,r)=>s + (Number(r.ev)||0),0) / picks : 0;
+        const avgOdds = picks ? data.reduce((s,r)=>s + (Number(r.odds)||0),0) / picks : 0;
+
+        document.getElementById("kPicks").textContent = picks;
+        document.getElementById("kAvgEv").textContent = (avgEv>=0?"+":"") + fmtNum(avgEv,3);
+        document.getElementById("kAvgOdds").textContent = fmtNum(avgOdds,2);
+        document.getElementById("kUpdated").textContent = new Date().toISOString().replace("T"," ").slice(0,19) + " UTC";
+        document.getElementById("statusPill").textContent = "Loaded";
+
+        const tbody = document.getElementById("rows");
+        tbody.innerHTML = "";
+
+        for (const r of data) {
+          const xgTotal = (Number(r.xg_home)||0) + (Number(r.xg_away)||0);
+          const evClass = (Number(r.ev)||0) >= 0 ? "evpos" : "evneg";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td data-label="Kick-off">${fmtDt(r.utc_date)}</td>
+            <td data-label="Match">
+              <div class="match">${r.home} vs ${r.away}</div>
+              <div class="muted">Fixture ${r.fixture_id}</div>
+            </td>
+            <td data-label="Pick"><span class="tag">${r.pick}</span></td>
+            <td data-label="Odds">${r.odds}</td>
+            <td data-label="Model">${fmtPct(r.model_p)}</td>
+            <td data-label="Market">${fmtPct(r.market_p)}</td>
+            <td data-label="EV" class="${evClass}">${(r.ev>=0?"+":"") + r.ev}</td>
+            <td data-label="xG total">${fmtNum(xgTotal,2)}</td>
+            <td data-label="Book">${r.bookmaker || ""}</td>
+          `;
+          tbody.appendChild(tr);
+        }
+
+        if (!picks) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="9" style="color:#9aa3b2;padding:14px;">No picks met today’s thresholds.</td>`;
+          tbody.appendChild(tr);
+        }
+      } catch (e) {
+        showError("Could not load champ_ou25_edge_report.json. If you're opening index.html directly, some browsers block fetch() from local files. Fix: run a tiny local server or deploy to Vercel. Error: " + e);
+      }
+    }
+
+    load();
+  </script>
+</body>
+</html>
