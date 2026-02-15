@@ -1,20 +1,5 @@
 [
   {
-    "utc_date": "2026-02-22T12:00:00+00:00",
-    "fixture_id": 1386944,
-    "home": "Sheffield Utd",
-    "away": "Sheffield Wednesday",
-    "pick": "UNDER 2.5",
-    "odds": 3.0,
-    "bookmaker": "10Bet",
-    "xg_home": 2.03,
-    "xg_away": 0.82,
-    "model_p": 0.395,
-    "market_p": 0.318,
-    "ev": 0.184,
-    "disagree": 0.139
-  },
-  {
     "utc_date": "2026-02-21T15:00:00+00:00",
     "fixture_id": 1386936,
     "home": "Southampton",
