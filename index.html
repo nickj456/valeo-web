@@ -17,6 +17,7 @@
       --warn: #fbbf24;
       --bad: #fb7185;
       --chip: #172235;
+      --shadow: rgba(0,0,0,0.35);
     }
 
     * { box-sizing: border-box; }
@@ -63,6 +64,7 @@
       justify-content: space-between;
       padding: 12px 14px;
       border-bottom: 1px solid var(--border);
+      gap: 10px;
     }
 
     .card-title {
@@ -71,6 +73,7 @@
       display: flex;
       gap: 10px;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .chip {
@@ -86,6 +89,8 @@
       display: flex;
       gap: 8px;
       align-items: center;
+      flex-wrap: wrap;
+      justify-content: flex-end;
     }
 
     button {
@@ -108,7 +113,7 @@
       width: 100%;
       border-collapse: collapse;
       font-size: 12.5px;
-      min-width: 980px;
+      min-width: 1080px;
     }
 
     thead th {
@@ -134,6 +139,10 @@
       background: rgba(125, 211, 252, 0.06);
     }
 
+    tbody tr.clickable {
+      cursor: pointer;
+    }
+
     .num { text-align: right; font-variant-numeric: tabular-nums; }
     .mono { font-variant-numeric: tabular-nums; }
     .muted { color: var(--muted); }
@@ -151,7 +160,22 @@
       background: rgba(23, 34, 53, 0.6);
     }
 
-    .suggest {
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      background: rgba(23, 34, 53, 0.6);
+      color: var(--muted);
+    }
+
+    .badgeA { color: #7dfcc8; border-color: rgba(52,211,153,0.35); }
+    .badgeB { color: #fcd57d; border-color: rgba(251,191,36,0.35); }
+    .badgeC { color: #fca5a5; border-color: rgba(251,113,133,0.35); }
+
+    .suggestCell {
       outline: 2px solid rgba(52, 211, 153, 0.55);
       outline-offset: -2px;
       border-radius: 8px;
@@ -176,6 +200,92 @@
       color: var(--muted);
       font-size: 12px;
       border-top: 1px solid var(--border);
+    }
+
+    /* Drawer */
+    .drawerOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.45);
+      display: none;
+      z-index: 50;
+    }
+    .drawerOverlay.open { display: block; }
+
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      height: 100%;
+      width: min(520px, 92vw);
+      background: linear-gradient(180deg, var(--panel), var(--panel-2));
+      border-left: 1px solid var(--border);
+      box-shadow: -12px 0 24px var(--shadow);
+      transform: translateX(100%);
+      transition: transform 160ms ease;
+      z-index: 60;
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+
+    .drawerHead {
+      padding: 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .drawerTitle {
+      font-size: 14px;
+      font-weight: 650;
+      line-height: 1.25;
+    }
+    .drawerSub {
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .drawerClose {
+      border: 1px solid var(--border);
+      background: #0c1420;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 8px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .drawerClose:hover { border-color: #35507a; }
+
+    .drawerBody {
+      padding: 14px;
+      overflow: auto;
+      display: grid;
+      gap: 12px;
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 8px 10px;
+      padding: 10px 10px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: rgba(23, 34, 53, 0.35);
+      font-size: 12.5px;
+    }
+    .kv div:nth-child(2n) { text-align: right; font-variant-numeric: tabular-nums; }
+    .kv .k { color: var(--muted); }
+    .kv .v { color: var(--text); }
+
+    .split {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    @media (max-width: 560px) {
+      .split { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -209,27 +319,30 @@
               <tr>
                 <th>Kickoff</th>
                 <th>Match</th>
-                <th class="th-tip" title="Your suggested bet based on EV and filters">Pick</th>
+                <th class="th-tip" title="Suggested based on EV and filters">Pick</th>
                 <th class="num th-tip" title="Best price found from your odds feed">Odds</th>
-                <th class="th-tip" title="Bookmaker for the best price">Book</th>
-                <th class="num th-tip" title="Final probability used for EV (model blended with market)">Model</th>
+                <th class="th-tip" title="Best-price source label (may be blank)">Book</th>
+                <th class="num th-tip" title="Final probability used for EV">Model</th>
                 <th class="num th-tip" title="Fair market probability after margin removal">Market</th>
                 <th class="num th-tip" title="Expected value per £1 stake: (p*odds - 1)">EV</th>
                 <th class="num th-tip" title="Model vs market absolute difference">Δ</th>
-                <th class="num th-tip" title="Model expected total goals (xG_home + xG_away)">xG total</th>
+                <th class="num th-tip" title="Expected total goals (xG_home + xG_away)">xG total</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
-        <div class="note" id="picksNote">If you see 0 picks, that’s normal on tight filters + limited odds coverage.</div>
+        <div class="note" id="picksNote">0 picks is normal on tight filters + limited odds coverage.</div>
       </section>
 
       <section class="card">
         <div class="card-head">
           <div class="card-title">
-            All next-round totals (probabilities)
+            Upcoming totals + Signal Score
             <span class="chip" id="totalsCount">0</span>
+            <span class="badge badgeA th-tip" title="Tier A: score ≥ 70">A</span>
+            <span class="badge badgeB th-tip" title="Tier B: score 50–69">B</span>
+            <span class="badge badgeC th-tip" title="Tier C: score < 50">C</span>
           </div>
           <div class="actions">
             <span class="muted" id="totalsMeta"></span>
@@ -241,25 +354,41 @@
               <tr>
                 <th>Kickoff</th>
                 <th>Match</th>
+                <th class="num th-tip" title="Signal Score (0–100). Click a row for details.">Score</th>
+                <th class="th-tip" title="Tier from score: A≥70, B 50–69, C<50">Tier</th>
                 <th class="num th-tip" title="Expected total goals (xG_home + xG_away)">xG total</th>
                 <th class="num th-tip" title="Probability total goals under 1.5">U1.5</th>
                 <th class="num th-tip" title="Probability total goals under 2.5">U2.5</th>
                 <th class="num th-tip" title="Probability total goals over 2.5">O2.5</th>
                 <th class="num th-tip" title="Probability total goals over 3.5">O3.5</th>
-                <th class="th-tip" title="Suggested side based on which is higher: U2.5 vs O2.5">Suggested</th>
+                <th class="th-tip" title="Model lean from U2.5 vs O2.5">Suggested</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
-        <div class="note">This table should always show fixtures, even when no “value picks” fire.</div>
+        <div class="note">Click a row to see why it scored that way.</div>
       </section>
     </div>
   </div>
 
+  <!-- Drawer -->
+  <div class="drawerOverlay" id="drawerOverlay"></div>
+  <aside class="drawer" id="drawer">
+    <div class="drawerHead">
+      <div>
+        <div class="drawerTitle" id="drawerTitle">Fixture</div>
+        <div class="drawerSub" id="drawerSub">Details</div>
+      </div>
+      <button class="drawerClose" id="drawerClose">Close</button>
+    </div>
+    <div class="drawerBody" id="drawerBody"></div>
+  </aside>
+
   <script>
-    const PICKS_URL = "/champ_ou25_edge_report.json";
+    const PICKS_URL  = "/champ_ou25_edge_report.json";
     const TOTALS_URL = "/champ_totals_predictions.json";
+    const SIGNAL_URL = "/champ_signal_report.json";
 
     const elStatus = document.getElementById("status");
     const picksTableBody = document.querySelector("#picksTable tbody");
@@ -269,6 +398,13 @@
     const picksMeta = document.getElementById("picksMeta");
     const totalsMeta = document.getElementById("totalsMeta");
     const refreshBtn = document.getElementById("refreshBtn");
+
+    const drawer = document.getElementById("drawer");
+    const drawerOverlay = document.getElementById("drawerOverlay");
+    const drawerClose = document.getElementById("drawerClose");
+    const drawerTitle = document.getElementById("drawerTitle");
+    const drawerSub = document.getElementById("drawerSub");
+    const drawerBody = document.getElementById("drawerBody");
 
     function fmtPct(x) {
       if (x === null || x === undefined || Number.isNaN(Number(x))) return "";
@@ -289,12 +425,21 @@
       }
     }
 
-    // Heatmap: shade cell background based on probability 0..1
-    function heatBg(prob) {
+    // Heatmap 0..1 for probabilities, red->green
+    function heatProb(prob) {
       const p = Math.max(0, Math.min(1, Number(prob)));
-      const a = 0.10 + p * 0.30; // opacity
-      // teal-ish
-      return `rgba(125, 211, 252, ${a})`;
+      const hue = 8 + (p * 120); // 8=red-ish, 128=green-ish
+      const alpha = 0.08 + (p * 0.28);
+      return `hsla(${hue}, 70%, 45%, ${alpha})`;
+    }
+
+    // Heatmap 0..100 for score, red->green
+    function heatScore(score) {
+      const s = Math.max(0, Math.min(100, Number(score)));
+      const p = s / 100;
+      const hue = 8 + (p * 120);
+      const alpha = 0.10 + (p * 0.30);
+      return `hsla(${hue}, 70%, 45%, ${alpha})`;
     }
 
     function evClass(ev) {
@@ -303,6 +448,14 @@
       if (v >= 0.03) return "warn";
       if (v < 0) return "bad";
       return "";
+    }
+
+    function tierFromScore(score) {
+      const s = Number(score);
+      if (!Number.isFinite(s)) return { t: "—", cls: "badge" };
+      if (s >= 70) return { t: "A", cls: "badge badgeA" };
+      if (s >= 50) return { t: "B", cls: "badge badgeB" };
+      return { t: "C", cls: "badge badgeC" };
     }
 
     async function fetchJson(url) {
@@ -315,6 +468,45 @@
       picksTableBody.innerHTML = "";
       totalsTableBody.innerHTML = "";
     }
+
+    function openDrawer(payload) {
+      drawerTitle.textContent = payload.title || "Fixture";
+      drawerSub.textContent = payload.sub || "";
+      drawerBody.innerHTML = "";
+
+      const blocks = payload.blocks || [];
+      for (const b of blocks) {
+        const div = document.createElement("div");
+        div.className = "kv";
+        for (const row of b) {
+          const k = document.createElement("div");
+          k.className = "k";
+          k.textContent = row.k;
+
+          const v = document.createElement("div");
+          v.className = "v";
+          v.textContent = row.v;
+
+          div.appendChild(k);
+          div.appendChild(v);
+        }
+        drawerBody.appendChild(div);
+      }
+
+      drawerOverlay.classList.add("open");
+      drawer.classList.add("open");
+    }
+
+    function closeDrawer() {
+      drawerOverlay.classList.remove("open");
+      drawer.classList.remove("open");
+    }
+
+    drawerOverlay.addEventListener("click", closeDrawer);
+    drawerClose.addEventListener("click", closeDrawer);
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeDrawer();
+    });
 
     function renderPicks(rows) {
       picksCount.textContent = rows.length;
@@ -336,8 +528,8 @@
           <td><span class="pill">${r.pick || ""}</span></td>
           <td class="num mono">${fmtNum(r.odds, 2)}</td>
           <td class="muted">${r.bookmaker || ""}</td>
-          <td class="num mono" style="background:${heatBg(r.model_p)}">${fmtPct(r.model_p)}</td>
-          <td class="num mono" style="background:${heatBg(r.market_p)}">${fmtPct(r.market_p)}</td>
+          <td class="num mono" style="background:${heatProb(r.model_p)}">${fmtPct(r.model_p)}</td>
+          <td class="num mono" style="background:${heatProb(r.market_p)}">${fmtPct(r.market_p)}</td>
           <td class="num mono ${evClass(r.ev)}">${(Number(r.ev) >= 0 ? "+" : "")}${fmtNum(r.ev, 3)}</td>
           <td class="num mono">${fmtNum(r.disagree, 3)}</td>
           <td class="num mono">${fmtNum(xgTotal, 2)}</td>
@@ -346,30 +538,102 @@
       }
     }
 
-    function renderTotals(rows) {
-      totalsCount.textContent = rows.length;
-      if (!rows.length) {
+    function buildSignalIndex(signalRows) {
+      const idx = new Map();
+      for (const s of signalRows) {
+        idx.set(Number(s.fixture_id), s);
+      }
+      return idx;
+    }
+
+    function renderTotals(totalsRows, signalIndex) {
+      totalsCount.textContent = totalsRows.length;
+      if (!totalsRows.length) {
         totalsMeta.textContent = "No fixtures loaded";
         return;
       }
-      totalsMeta.textContent = `Showing ${rows.length} fixtures`;
 
-      for (const r of rows) {
+      const hasSignals = signalIndex && signalIndex.size > 0;
+      totalsMeta.textContent = `Showing ${totalsRows.length} fixtures${hasSignals ? " • click row for details" : ""}`;
+
+      for (const r of totalsRows) {
         const tr = document.createElement("tr");
+        tr.classList.add("clickable");
+
         const u25 = Number(r.p_under_2_5);
         const o25 = Number(r.p_over_2_5);
         const suggested = (u25 >= o25) ? "UNDER 2.5" : "OVER 2.5";
 
+        const sig = signalIndex ? signalIndex.get(Number(r.fixture_id)) : null;
+        const score = sig ? Number(sig.signal_score) : null;
+        const tier = tierFromScore(score);
+
         tr.innerHTML = `
           <td class="mono">${fmtDate(r.utc_date)}</td>
           <td>${r.home} vs ${r.away}</td>
+          <td class="num mono" style="background:${score === null ? "" : heatScore(score)}">${score === null ? "—" : score}</td>
+          <td><span class="${tier.cls}">${tier.t}</span></td>
           <td class="num mono">${fmtNum(r.xg_total, 2)}</td>
-          <td class="num mono" style="background:${heatBg(r.p_under_1_5)}">${fmtPct(r.p_under_1_5)}</td>
-          <td class="num mono ${u25 >= o25 ? "suggest" : ""}" style="background:${heatBg(r.p_under_2_5)}">${fmtPct(r.p_under_2_5)}</td>
-          <td class="num mono ${o25 > u25 ? "suggest" : ""}" style="background:${heatBg(r.p_over_2_5)}">${fmtPct(r.p_over_2_5)}</td>
-          <td class="num mono" style="background:${heatBg(r.p_over_3_5)}">${fmtPct(r.p_over_3_5)}</td>
+          <td class="num mono" style="background:${heatProb(r.p_under_1_5)}">${fmtPct(r.p_under_1_5)}</td>
+          <td class="num mono ${u25 >= o25 ? "suggestCell" : ""}" style="background:${heatProb(r.p_under_2_5)}">${fmtPct(r.p_under_2_5)}</td>
+          <td class="num mono ${o25 > u25 ? "suggestCell" : ""}" style="background:${heatProb(r.p_over_2_5)}">${fmtPct(r.p_over_2_5)}</td>
+          <td class="num mono" style="background:${heatProb(r.p_over_3_5)}">${fmtPct(r.p_over_3_5)}</td>
           <td><span class="pill">${suggested}</span></td>
         `;
+
+        tr.addEventListener("click", () => {
+          if (!sig) {
+            openDrawer({
+              title: `${r.home} vs ${r.away}`,
+              sub: `${fmtDate(r.utc_date)} • No signal detail found (champ_signal_report.json missing for this fixture)`,
+              blocks: [
+                [
+                  { k: "xG total", v: fmtNum(r.xg_total, 2) },
+                  { k: "U2.5", v: fmtPct(r.p_under_2_5) },
+                  { k: "O2.5", v: fmtPct(r.p_over_2_5) },
+                  { k: "Suggested", v: suggested },
+                ]
+              ]
+            });
+            return;
+          }
+
+          const b = sig.signal_breakdown || {};
+          const mkP = sig.p_market_under_fair;
+          const dlt = sig.delta_model_vs_market;
+
+          openDrawer({
+            title: `${sig.home} vs ${sig.away}`,
+            sub: `${fmtDate(sig.utc_date)} • Fixture ${sig.fixture_id}`,
+            blocks: [
+              [
+                { k: "Signal Score", v: String(sig.signal_score ?? "—") },
+                { k: "Tier", v: tierFromScore(sig.signal_score).t },
+                { k: "Suggested", v: sig.suggested ?? suggested },
+                { k: "Odds (Under)", v: sig.market_under_odds ? fmtNum(sig.market_under_odds, 2) : "—" },
+              ],
+              [
+                { k: "xG home", v: sig.xg_home !== undefined ? fmtNum(sig.xg_home, 2) : "—" },
+                { k: "xG away", v: sig.xg_away !== undefined ? fmtNum(sig.xg_away, 2) : "—" },
+                { k: "xG total", v: sig.xg_total !== undefined ? fmtNum(sig.xg_total, 2) : fmtNum(r.xg_total, 2) },
+                { k: "U2.5 (model)", v: sig.p_under_2_5 !== undefined ? fmtPct(sig.p_under_2_5) : fmtPct(r.p_under_2_5) },
+              ],
+              [
+                { k: "Market P(U2.5) fair", v: (mkP === null || mkP === undefined) ? "—" : fmtPct(mkP) },
+                { k: "Δ model vs market", v: (dlt === null || dlt === undefined) ? "—" : fmtNum(dlt, 3) },
+                { k: "Cal bucket", v: sig.calibration_bucket ?? sig.cal_bucket ?? "—" },
+                { k: "Cal observed", v: (sig.calibration_observed === null || sig.cal_observed === null || sig.calibration_observed === undefined || sig.cal_observed === undefined) ? "—" : fmtPct(sig.calibration_observed ?? sig.cal_observed) },
+              ],
+              [
+                { k: "Breakdown: disagreement", v: (b.market_disagreement ?? "—").toString() },
+                { k: "Breakdown: xG bias", v: (b.xg_bias ?? "—").toString() },
+                { k: "Breakdown: calibration", v: (b.calibration ?? "—").toString() },
+                { k: "Breakdown: volatility", v: (b.volatility_penalty ?? "—").toString() },
+              ],
+            ]
+          });
+        });
+
         totalsTableBody.appendChild(tr);
       }
     }
@@ -379,16 +643,19 @@
       elStatus.textContent = "Loading…";
 
       try {
-        const [picks, totals] = await Promise.all([
-          fetchJson(PICKS_URL),
-          fetchJson(TOTALS_URL),
-        ]);
+        const picksP = fetchJson(PICKS_URL).catch(() => []);
+        const totalsP = fetchJson(TOTALS_URL).catch(() => []);
+        const signalP = fetchJson(SIGNAL_URL).catch(() => []);
+
+        const [picks, totals, signals] = await Promise.all([picksP, totalsP, signalP]);
 
         renderPicks(Array.isArray(picks) ? picks : []);
-        renderTotals(Array.isArray(totals) ? totals : []);
+
+        const signalIndex = Array.isArray(signals) ? buildSignalIndex(signals) : new Map();
+        renderTotals(Array.isArray(totals) ? totals : [], signalIndex);
 
         const now = new Date();
-        elStatus.textContent = `Updated ${now.toLocaleString()} • Sources: ${PICKS_URL}, ${TOTALS_URL}`;
+        elStatus.textContent = `Updated ${now.toLocaleString()} • Sources: ${PICKS_URL}, ${TOTALS_URL}, ${SIGNAL_URL}`;
       } catch (err) {
         console.error(err);
         elStatus.textContent = "Failed to load data. Check console.";
