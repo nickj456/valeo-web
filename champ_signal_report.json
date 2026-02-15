@@ -1,0 +1,47 @@
+[
+  {
+    "utc_date": "2026-02-16T20:00:00+00:00",
+    "fixture_id": 1386927,
+    "home": "Coventry",
+    "away": "Middlesbrough",
+    "suggested": "LEAN UNDER 2.5",
+    "signal_score": 20,
+    "xg_total": 2.63,
+    "p_under_2_5": 0.51,
+    "p_over_2_5": 0.49,
+    "market_p_under_fair": 0.443,
+    "delta_model_vs_market": 0.067,
+    "cal_bucket": "0.5",
+    "cal_observed": 0.5526
+  },
+  {
+    "utc_date": "2026-02-17T19:45:00+00:00",
+    "fixture_id": 1386924,
+    "home": "Bristol City",
+    "away": "Wrexham",
+    "suggested": "LEAN UNDER 2.5",
+    "signal_score": 15,
+    "xg_total": 2.54,
+    "p_under_2_5": 0.534,
+    "p_over_2_5": 0.466,
+    "market_p_under_fair": 0.506,
+    "delta_model_vs_market": 0.028,
+    "cal_bucket": "0.5",
+    "cal_observed": 0.5526
+  },
+  {
+    "utc_date": "2026-02-17T19:45:00+00:00",
+    "fixture_id": 1386768,
+    "home": "Charlton",
+    "away": "Portsmouth",
+    "suggested": "UNDER 2.5",
+    "signal_score": 0,
+    "xg_total": 2.13,
+    "p_under_2_5": 0.641,
+    "p_over_2_5": 0.359,
+    "market_p_under_fair": 0.592,
+    "delta_model_vs_market": 0.049,
+    "cal_bucket": "0.6",
+    "cal_observed": 0.4028
+  }
+]
