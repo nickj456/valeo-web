@@ -1,1 +1,17 @@
-[]
+[
+  {
+    "utc_date": "2026-02-16T20:00:00+00:00",
+    "fixture_id": 1386927,
+    "home": "Coventry",
+    "away": "Middlesbrough",
+    "pick": "UNDER 2.5",
+    "odds": 2.2,
+    "bookmaker": "Betfair",
+    "xg_home": 1.52,
+    "xg_away": 1.12,
+    "model_p": 0.48,
+    "market_p": 0.443,
+    "ev": 0.056,
+    "disagree": 0.067
+  }
+]
