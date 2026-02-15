@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Valeo – Championship O/U 2.5</title>
+  <title>Valeo – Championship</title>
   <style>
     :root { --bg:#0b0d12; --card:#121620; --text:#e7eaf0; --muted:#9aa3b2; --line:#242b3a; }
     body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; background: var(--bg); color: var(--text); }
@@ -17,6 +17,9 @@
     .k { color: var(--muted); font-size: 12px; }
     .v { font-size: 18px; margin-top: 6px; }
     .err { background:#2a1212; border:1px solid #5a1f1f; border-radius: 12px; padding: 12px; color:#ffd6d6; margin: 12px 0; display:none; }
+    .section { margin-top: 18px; }
+    .section h2 { font-size: 16px; margin: 0 0 10px; color: var(--text); }
+    .section .hint { color: var(--muted); font-size: 12px; margin: 0 0 10px; }
     table { width:100%; border-collapse: collapse; background: var(--card); border:1px solid var(--line); border-radius: 14px; overflow:hidden; }
     thead th { text-align:left; font-size: 12px; color: var(--muted); padding: 12px; border-bottom:1px solid var(--line); background: rgba(255,255,255,0.02); }
     tbody td { padding: 12px; border-bottom:1px solid var(--line); vertical-align: top; }
@@ -36,23 +39,23 @@
     <header>
       <div>
         <h1>Valeo</h1>
-        <div class="sub">Championship • Goals Over/Under 2.5 • Poisson + recency + shrink + market blend</div>
+        <div class="sub">Championship • Totals model (Poisson + recency + shrink). Value picks use market odds.</div>
       </div>
       <div class="pill" id="statusPill">Loading…</div>
     </header>
 
     <div class="grid">
       <div class="card">
-        <div class="k">Picks</div>
+        <div class="k">Value picks</div>
         <div class="v" id="kPicks">—</div>
       </div>
       <div class="card">
-        <div class="k">Avg EV</div>
+        <div class="k">Avg EV (picks)</div>
         <div class="v" id="kAvgEv">—</div>
       </div>
       <div class="card">
-        <div class="k">Avg Odds</div>
-        <div class="v" id="kAvgOdds">—</div>
+        <div class="k">All fixtures</div>
+        <div class="v" id="kFixtures">—</div>
       </div>
       <div class="card">
         <div class="k">Last updated</div>
@@ -62,41 +65,50 @@
 
     <div class="err" id="errBox"></div>
 
-    <table>
-      <thead>
-  <tr>
-    <th>Kick-off</th>
-    <th>Match</th>
-    <th>Pick</th>
-    <th>Odds</th>
+    <div class="section">
+      <h2>Value picks (O/U 2.5)</h2>
+      <p class="hint">Filtered by EV threshold + sanity guardrails. Hover column headers for definitions.</p>
 
-    <th title="Model probability for the pick (your blended value after combining Poisson model and market anchor).">
-      Model
-    </th>
+      <table>
+        <thead>
+          <tr>
+            <th>Kick-off</th>
+            <th>Match</th>
+            <th>Pick</th>
+            <th>Odds</th>
+            <th title="Final model probability for the pick (includes a blend with market anchor).">Model</th>
+            <th title="Market implied probability (normalised to remove book margin).">Market</th>
+            <th title="Expected value per £1 stake: (FinalProb × Odds) − 1.">EV</th>
+            <th title="Expected goals total (λ_home + λ_away).">xG total</th>
+            <th title="Bookmaker offering the best captured price for that side.">Book</th>
+          </tr>
+        </thead>
+        <tbody id="rowsPicks"></tbody>
+      </table>
+    </div>
 
-    <th title="Market implied probability (normalised from best Over/Under 2.5 odds to remove bookmaker margin).">
-      Market
-    </th>
+    <div class="section">
+      <h2>All fixtures (totals probabilities)</h2>
+      <p class="hint">This is not “tips”. It’s the model’s view of totals for every upcoming match.</p>
 
-    <th title="Expected value per £1 stake: (FinalProb × Odds) − 1. Positive means the price looks value vs your model.">
-      EV
-    </th>
-
-    <th title="Expected goals total (λ_home + λ_away) from the Poisson inputs. Useful for sanity-checking Under/Over picks.">
-      xG total
-    </th>
-
-    <th title="Bookmaker offering the best price you captured for that side of the market (Over or Under 2.5).">
-      Book
-    </th>
-  </tr>
-</thead>
-
-      <tbody id="rows"></tbody>
-    </table>
+      <table>
+        <thead>
+          <tr>
+            <th>Kick-off</th>
+            <th>Match</th>
+            <th title="Probability total goals are 0 or 1.">U1.5</th>
+            <th title="Probability total goals are 0, 1, or 2.">U2.5</th>
+            <th title="Probability total goals are 3+.">O2.5</th>
+            <th title="Probability total goals are 4+.">O3.5</th>
+            <th title="Expected goals total (λ_home + λ_away).">xG</th>
+          </tr>
+        </thead>
+        <tbody id="rowsAll"></tbody>
+      </table>
+    </div>
 
     <div class="footer">
-      Personal use only for now. When you go public, we’ll add settlement, ROI, and a full audit trail.
+      Personal use now. Next: settlement + ROI so you can trust it (or kill it) with data.
     </div>
   </div>
 
@@ -106,7 +118,6 @@
     const fmtDt = (iso) => {
       try {
         const d = new Date(iso);
-        // UK-friendly without being locale-chaotic
         return d.toISOString().replace("T", " ").slice(0, 16) + " UTC";
       } catch { return iso; }
     };
@@ -118,33 +129,68 @@
       document.getElementById("statusPill").textContent = "Error loading data";
     }
 
+    async function loadJson(path) {
+      const res = await fetch(path + "?ts=" + Date.now(), { cache: "no-store" });
+      if (!res.ok) throw new Error(path + " HTTP " + res.status);
+      return await res.json();
+    }
+
     async function load() {
       try {
-        // cache-bust so local file updates show
-        const res = await fetch("./champ_ou25_edge_report.json?ts=" + Date.now(), { cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const data = await res.json();
+        const picks = await loadJson("./champ_ou25_edge_report.json");
+        const all = await loadJson("./champ_totals_predictions.json");
 
         // Sort by kick-off
-        data.sort((a,b) => new Date(a.utc_date) - new Date(b.utc_date));
+        picks.sort((a,b) => new Date(a.utc_date) - new Date(b.utc_date));
+        all.sort((a,b) => new Date(a.utc_date) - new Date(b.utc_date));
 
-        const picks = data.length;
-        const avgEv = picks ? data.reduce((s,r)=>s + (Number(r.ev)||0),0) / picks : 0;
-        const avgOdds = picks ? data.reduce((s,r)=>s + (Number(r.odds)||0),0) / picks : 0;
+        // Cards
+        const nPicks = picks.length;
+        const avgEv = nPicks ? picks.reduce((s,r)=>s + (Number(r.ev)||0),0) / nPicks : 0;
 
-        document.getElementById("kPicks").textContent = picks;
-        document.getElementById("kAvgEv").textContent = (avgEv>=0?"+":"") + fmtNum(avgEv,3);
-        document.getElementById("kAvgOdds").textContent = fmtNum(avgOdds,2);
+        document.getElementById("kPicks").textContent = nPicks;
+        document.getElementById("kAvgEv").textContent = nPicks ? ((avgEv>=0?"+":"") + fmtNum(avgEv,3)) : "—";
+        document.getElementById("kFixtures").textContent = all.length;
         document.getElementById("kUpdated").textContent = new Date().toISOString().replace("T"," ").slice(0,19) + " UTC";
         document.getElementById("statusPill").textContent = "Loaded";
 
-        const tbody = document.getElementById("rows");
-        tbody.innerHTML = "";
+        // Picks table
+        const tbP = document.getElementById("rowsPicks");
+        tbP.innerHTML = "";
 
-        for (const r of data) {
-          const xgTotal = (Number(r.xg_home)||0) + (Number(r.xg_away)||0);
-          const evClass = (Number(r.ev)||0) >= 0 ? "evpos" : "evneg";
+        if (!nPicks) {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `<td colspan="9" style="color:#9aa3b2;padding:14px;">No value picks met thresholds today.</td>`;
+          tbP.appendChild(tr);
+        } else {
+          for (const r of picks) {
+            const xgTotal = (Number(r.xg_home)||0) + (Number(r.xg_away)||0);
+            const evClass = (Number(r.ev)||0) >= 0 ? "evpos" : "evneg";
 
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td data-label="Kick-off">${fmtDt(r.utc_date)}</td>
+              <td data-label="Match">
+                <div class="match">${r.home} vs ${r.away}</div>
+                <div class="muted">Fixture ${r.fixture_id}</div>
+              </td>
+              <td data-label="Pick"><span class="tag">${r.pick}</span></td>
+              <td data-label="Odds">${r.odds}</td>
+              <td data-label="Model">${fmtPct(r.model_p)}</td>
+              <td data-label="Market">${fmtPct(r.market_p)}</td>
+              <td data-label="EV" class="${evClass}">${(r.ev>=0?"+":"") + r.ev}</td>
+              <td data-label="xG total">${fmtNum(xgTotal,2)}</td>
+              <td data-label="Book">${r.bookmaker || ""}</td>
+            `;
+            tbP.appendChild(tr);
+          }
+        }
+
+        // All fixtures table
+        const tbA = document.getElementById("rowsAll");
+        tbA.innerHTML = "";
+
+        for (const r of all) {
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td data-label="Kick-off">${fmtDt(r.utc_date)}</td>
@@ -152,24 +198,16 @@
               <div class="match">${r.home} vs ${r.away}</div>
               <div class="muted">Fixture ${r.fixture_id}</div>
             </td>
-            <td data-label="Pick"><span class="tag">${r.pick}</span></td>
-            <td data-label="Odds">${r.odds}</td>
-            <td data-label="Model">${fmtPct(r.model_p)}</td>
-            <td data-label="Market">${fmtPct(r.market_p)}</td>
-            <td data-label="EV" class="${evClass}">${(r.ev>=0?"+":"") + r.ev}</td>
-            <td data-label="xG total">${fmtNum(xgTotal,2)}</td>
-            <td data-label="Book">${r.bookmaker || ""}</td>
+            <td data-label="U1.5">${fmtPct(r.p_under_1_5)}</td>
+            <td data-label="U2.5">${fmtPct(r.p_under_2_5)}</td>
+            <td data-label="O2.5">${fmtPct(r.p_over_2_5)}</td>
+            <td data-label="O3.5">${fmtPct(r.p_over_3_5)}</td>
+            <td data-label="xG">${fmtNum(r.xg_total,2)}</td>
           `;
-          tbody.appendChild(tr);
-        }
-
-        if (!picks) {
-          const tr = document.createElement("tr");
-          tr.innerHTML = `<td colspan="9" style="color:#9aa3b2;padding:14px;">No picks met today’s thresholds.</td>`;
-          tbody.appendChild(tr);
+          tbA.appendChild(tr);
         }
       } catch (e) {
-        showError("Could not load champ_ou25_edge_report.json. If you're opening index.html directly, some browsers block fetch() from local files. Fix: run a tiny local server or deploy to Vercel. Error: " + e);
+        showError(String(e));
       }
     }
 
