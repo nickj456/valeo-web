@@ -226,10 +226,24 @@
       return await res.json();
     }
 
-    /* Heatmap helpers */
+    function clamp(x, lo, hi) {
+      return Math.max(lo, Math.min(hi, x));
+    }
+
     function heatStyle(p) {
-      const a = 0.10 + 0.45 * p; // alpha intensity
-      return `background: rgba(159, 240, 181, ${a.toFixed(3)});`;
+       // Stronger scale so you can actually see it.
+       // Low probs = faint, high probs = very visible.
+       p = clamp(Number(p) || 0, 0, 1);
+
+       // Emphasise differences around the middle
+       const boosted = Math.pow(p, 0.75);
+
+       // Much wider alpha range than before
+       const a = 0.06 + 0.70 * boosted;
+
+       return `background: rgba(159, 240, 181, ${a.toFixed(3)});`;
+    }
+
     }
 
     function bestLabel(r) {
